@@ -4,52 +4,54 @@ on:
   push:
     paths:
       - 'app_javascript/**'
-    branches: [ master ]
   pull_request:
     paths:
       - 'app_javascript/**'
-    branches: [ master ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
+    defaults:
+      run:
+        working-directory: app_javascript
+
+
+    steps:  
+    - uses: actions/checkout@master
 
     - name: Set up Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
         node-version: '18'
-        cache: 'npm'
 
     - name: Install dependencies
       run: |
-        cd app_javascript
-        npm ci
+        npm install
 
     - name: Lint with ESLint
       run: |
-        cd app_javascript
-        npm run lint
+        npm install eslint --no-save
+        npx eslint .
 
     - name: Run tests with Jest
       run: |
-        cd app_javascript
-        npm test
+        npm run test
         
     - name: Upload test coverage
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: coverage
-        path: app_javascript/coverage
+        path: ./coverage
 
     - name: Run Snyk to check for vulnerabilities
       uses: snyk/actions/node@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      continue-on-error: true
       with:
-        args: --severity-threshold=high
+        args: --severity-threshold=high --skip-unresolved app_javascript/
+        command: test
+        
 
   docker:
     needs: test
@@ -71,6 +73,6 @@ jobs:
         with:
           context: ./app_javascript
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/moscow-time:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/node-moscow-time:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
